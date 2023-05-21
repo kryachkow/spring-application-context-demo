@@ -3,6 +3,7 @@ package bean;
 import annotation.Bean;
 import annotation.Inject;
 import annotation.Qualifier;
+import annotation.Value;
 
 @Bean(beanName = "AB")
 public class AB {
@@ -11,12 +12,14 @@ public class AB {
   private final B b;
 
   @Inject
-  @Qualifier(name = "beanE")
   private Vowel vowel1;
 
   private final Vowel vowel2;
 
-  public AB(A a, B b, @Qualifier(name = "beanO") Vowel vowel){
+  @Value(value = "bean.AB.value")
+  private String value;
+
+  public AB(A a, B b, Vowel vowel){
     this.a = a;
     this.b = b;
     vowel2 = vowel;
@@ -25,7 +28,7 @@ public class AB {
   public String doAB(){
     return a.doA() + b.doB();
   }
-  public String doWord(){ return a.doA() + vowel1.makeNoise() + vowel2.makeNoise();}
+  public String doWord(){ return a.doA() + vowel1.makeNoise() + vowel2.makeNoise() + value;}
 
 
 }

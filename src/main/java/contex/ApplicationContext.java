@@ -3,9 +3,11 @@ package contex;
 import annotation.Bean;
 import annotation.Inject;
 import annotation.Qualifier;
+import annotation.Value;
 import exception.InappropriateInjectionException;
 import exception.NoSuchBeanException;
 import exception.NoUniqueBeanException;
+import exception.PropertiesFileException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -16,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -26,9 +29,10 @@ public class ApplicationContext {
   private final Map<String, Object> beans = new HashMap<>();
 
   public ApplicationContext(String path)
-      throws NoSuchBeanException, NoUniqueBeanException, InvocationTargetException, InstantiationException, IllegalAccessException {
+      throws NoSuchBeanException, NoUniqueBeanException, InvocationTargetException, InstantiationException, IllegalAccessException, PropertiesFileException {
     putBeansInAppContext(new Reflections(path));
     makeBeanInjection();
+    makeValueInjection(PropertiesReader.getStartUpPropertiesMap("C:\\Users\\Admin\\Documents\\spring-application-context-demo\\src\\main\\resources\\demo.properties"));
   }
 
   public <T> T getBean(Class<T> tClass) throws NoSuchBeanException, NoUniqueBeanException {
@@ -128,14 +132,13 @@ public class ApplicationContext {
     List<Class<?>> collect = beansClasses
         .stream()
         .filter(
-            findClass -> Arrays.asList(findClass.getInterfaces()).contains(parameter.getClass()))
+            findClass -> Arrays.asList(findClass.getInterfaces()).contains(parameter.getType()))
         .collect(Collectors.toList());
     if (collect.size() > 1) {
       throw new NoUniqueBeanException(
-          "No unique bean for " + parameter.getClass().getName() + "class");
+          "No unique bean for " + parameter.getType().getName() + "class");
     }
-    return (T) createBean(Optional.of(collect.get(0)).orElseThrow(
-            () -> new NoSuchBeanException("No bean for " + parameter.getClass().getName() + " class")),
+    return (T) createBean(collect.stream().findFirst().orElseThrow(() -> new NoSuchBeanException("No bean for " + parameter.getClass().getName() + " class")),
         beansClasses);
   }
 
@@ -152,6 +155,16 @@ public class ApplicationContext {
     }
   }
 
+  private void makeValueInjection(Map<String, String> propertiesMap) throws IllegalAccessException {
+    for (Object o : beans.values()) {
+      for (Field field : Arrays.stream(o.getClass().getDeclaredFields())
+          .filter(field -> field.isAnnotationPresent(Value.class))
+          .collect(Collectors.toList())) {
+        injectValue(field, o, propertiesMap);
+      }
+    }
+  }
+
   private void injectToField(Field field, Object object)
       throws IllegalAccessException, NoSuchBeanException, NoUniqueBeanException {
     field.setAccessible(true);
@@ -162,6 +175,13 @@ public class ApplicationContext {
           : getBeanForClass(field.getType());
       field.set(object, injection);
     }
+  }
+
+  private void injectValue(Field field,Object object, Map<String, String> propertiesMap)
+      throws IllegalAccessException {
+    field.setAccessible(true);
+    String s = Objects.requireNonNull(propertiesMap.get(field.getAnnotation(Value.class).value()));
+    field.set(object, s);
   }
 
   private boolean fieldQualified(Field field) {

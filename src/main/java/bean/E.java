@@ -2,7 +2,7 @@ package bean;
 
 import annotation.Bean;
 
-@Bean(beanName = "beanE")
+//@Bean(beanName = "beanE")
 public class E implements Vowel {
 
   @Override
